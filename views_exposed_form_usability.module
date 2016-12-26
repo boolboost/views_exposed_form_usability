@@ -1,0 +1,149 @@
+<?php
+/**
+ * @file
+ * views_exposed_form_usability.module
+ */
+
+/**
+ * Implements hook_preprocess_views_exposed_form().
+ */
+function views_exposed_form_usability_preprocess_views_exposed_form(&$variables) {
+  $variables['content'] = '';
+
+  // first level render
+  foreach ($variables['widgets'] as $id => $widget) {
+    if (isset($widget->widget)) {
+      $field_name = preg_replace('/^edit-/', '', $widget->id);
+      $field_name = preg_replace('/\-/', '_', $field_name);
+      $variables['content'] .= render($variables['form'][$field_name]);
+    }
+  }
+
+  // render button
+  $button = '';
+  if (isset($variables['form']['submit']['#children'])) {
+    if (isset($variables['form']['submit']['#prefix'])) {
+      $button .= $variables['form']['submit']['#prefix'];
+    }
+
+    $button .= $variables['form']['submit']['#children'];
+
+    if (isset($variables['form']['submit']['#suffix'])) {
+      $button .= $variables['form']['submit']['#suffix'];
+    }
+  }
+
+  // remove button
+  $variables['content'] .= preg_replace('/' . preg_quote($button, '/') . '$/', '', $variables['button']);
+
+  // fixed button
+  $variables['button'] = $button;
+
+  // sort_by
+  if (!empty($variables['sort_by'])) {
+    $variables['content'] .= $variables['sort_by'] . $variables['sort_order'];
+  }
+
+  // submit
+  if (!empty($variables['button'])) {
+    $variables['content'] .= $variables['button'];
+  }
+
+  // reset
+  if (!empty($variables['reset_button'])) {
+    $variables['content'] .= $variables['reset_button'];
+  }
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ *
+ * @form_id
+ * views_exposed_form
+ */
+function views_exposed_form_usability_form_views_exposed_form_alter(&$form, &$form_state, $form_id) {
+  // fixed structure elements
+  $filter = function (&$item, $key, $data) {
+    if ($key{0} != '#' && is_array($item)) {
+      $info = &$data['info'];
+      $callback = &$data['callback'];
+
+      // base key
+      $info_key = 'filter-' . $key;
+
+      // key taxonomy term
+      if (!isset($info[$info_key]) && isset($info[$info_key . '_tid'])) {
+        $info_key = $info_key . '_tid';
+      }
+
+      // base label
+      if (isset($info[$info_key])) {
+        $title = $info[$info_key]['label'];
+
+        if (isset($item['#tree']) && $item['#tree']) {
+          $item['value']['#title'] = $title;
+        }
+        else {
+          $item['#title'] = $title;
+        }
+      }
+
+      // range
+      if (!isset($item['#type']) && isset($item['min'], $item['max'])) {
+        $id = drupal_html_id('edit-' . $info[$info_key]['value'] . '-wrapper');
+        $classes = drupal_html_class('views-exposed-widget views-widget-filter-' . $key);
+
+        // markup
+        $prefix = format_string('<div id="@id" class="@classes">', array(
+          '@id' => $id,
+          '@classes' => $classes,
+        ));
+
+        // label
+        if ($item['value']['#title']) {
+          $prefix .= format_string('<label for="@for">!label</label>', array(
+            '@for' => $id,
+            '!label' => $item['value']['#title'],
+          ));
+        }
+
+        // content
+        $prefix .= '<div class="views-widget">';
+
+        $item['#prefix'] = $prefix;
+        $item['#suffix'] = '</div></div>';
+      }
+
+      // sort_by
+      if ($key == 'sort_by') {
+        $item['#prefix'] = '<div class="views-exposed-widget views-widget-sort-by">';
+        $item['#suffix'] = '</div>';
+      }
+
+      // sort_order
+      if ($key == 'sort_order') {
+        $item['#prefix'] = '<div class="views-exposed-widget views-widget-sort-order">';
+        $item['#suffix'] = '</div>';
+      }
+
+      // reset
+      if ($key == 'reset') {
+        $item['#prefix'] = '<div class="views-exposed-widget views-reset-button">';
+        $item['#suffix'] = '</div>';
+      }
+
+      // submit
+      if ($key == 'submit') {
+        $item['#prefix'] = '<div class="views-exposed-widget views-submit-button">';
+        $item['#suffix'] = '</div>';
+      }
+
+      array_walk($item, $callback, $data);
+    }
+  };
+
+  array_walk($form, $filter, array(
+    'info' => &$form['#info'],
+    'callback' => $filter,
+  ));
+}

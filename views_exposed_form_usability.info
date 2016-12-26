@@ -1,0 +1,6 @@
+name = Views exposed form usability
+description = Поддержка вложеных элементов.
+package = Views
+core = 7.x
+
+dependencies[] = views
