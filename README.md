@@ -14,7 +14,18 @@
 
 > Используется нестандартный шаблон https://github.com/boolboost/views_exposed_form_usability/blob/master/theme/views-exposed-form.tpl.php.
 
+Примеры ниже выполняются в `hook_form_alter()` или `hook_form_views_exposed_form_alter()`.
+
 ## Пример 1
+
+Переместить любой элемент в div "wrap".
+
+~~~ php
+$form['wrap']['element'] = $form['element'];
+unset($form['element']);
+~~~
+
+## Пример 2
 
 Посмотреть заголовок фильтра.
 
@@ -25,21 +36,12 @@ $form['field_name']['#title'];
 $form['field_name']['value']['#title'];
 ~~~
 
-## Пример 2
-
-Переместить кнопку reset в div "actions".
-
-~~~ php
-$form['actions']['reset'] = $form['reset'];
-unset($form['reset']);
-~~~
-
 ## Пример 3
 
 Переместить кнопку submit в div "actions".
 
 > Физически нельзя удалять элемент "submit" из корня.
-> 
+>
 > Данный код отменяет его отображение.
 
 ~~~ php
