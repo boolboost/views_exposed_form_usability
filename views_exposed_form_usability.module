@@ -5,17 +5,47 @@
  */
 
 /**
+ * http://cgit.drupalcode.org/sandbox-xandeadx-2160935/tree/helpers/ArrayHelper.inc#n13
+ *
+ * Return the values from a single column in the input array.
+ * @param array $array Source array
+ * @param string $column_key Column key name
+ * @param string|NULL $index_key Index key name
+ * @return array
+ */
+function views_exposed_form_usability_get_column(array $array, $column_key, $index_key = NULL) {
+  $new_array = array();
+
+  foreach ($array as $key => $value) {
+    if (is_object($value)) {
+      $value = (array)$value;
+    }
+    if ($index_key !== NULL) {
+      $key = $value[$index_key];
+    }
+    if (isset($value[$column_key])) {
+      $new_array[$key] = $value[$column_key];
+    }
+    else {
+      $new_array[$key] = NULL;
+    }
+  }
+
+  return $new_array;
+}
+
+/**
  * Implements hook_preprocess_views_exposed_form().
  */
 function views_exposed_form_usability_preprocess_views_exposed_form(&$variables) {
   $variables['content'] = '';
 
+  $info_value = views_exposed_form_usability_get_column($variables['form']['#info'], 'value');
+
   // first level render
   foreach ($variables['widgets'] as $id => $widget) {
     if (isset($widget->widget)) {
-      $field_name = preg_replace('/^edit-/', '', $widget->id);
-      $field_name = preg_replace('/\-/', '_', $field_name);
-      $variables['content'] .= render($variables['form'][$field_name]);
+      $variables['content'] .= render($variables['form'][$info_value[$id]]);
     }
   }
 
@@ -65,19 +95,12 @@ function views_exposed_form_usability_form_views_exposed_form_alter(&$form, &$fo
   // fixed structure elements
   $filter = function (&$item, $key, $data) {
     if ($key{0} != '#' && is_array($item)) {
-      $info = &$data['info'];
       $callback = &$data['callback'];
-
-      // base key
-      $info_key = 'filter-' . $key;
-
-      // key taxonomy term
-      if (!isset($info[$info_key]) && isset($info[$info_key . '_tid'])) {
-        $info_key = $info_key . '_tid';
-      }
+      $info = &$data['info'];
+      $info_key = isset($data['info_key'][$key])? $data['info_key'][$key]: NULL;
 
       // base label
-      if (isset($info[$info_key])) {
+      if ($info_key) {
         $title = $info[$info_key]['label'];
 
         if (isset($item['#tree']) && $item['#tree']) {
@@ -90,8 +113,8 @@ function views_exposed_form_usability_form_views_exposed_form_alter(&$form, &$fo
 
       // range
       if (!isset($item['#type']) && isset($item['min'], $item['max'])) {
-        $id = drupal_html_id('edit-' . $info[$info_key]['value'] . '-wrapper');
-        $classes = drupal_html_class('views-exposed-widget views-widget-filter-' . $key);
+        $id = drupal_html_id("edit-{$info[$info_key]['value']}-wrapper");
+        $classes = drupal_html_class("views-exposed-widget views-widget-filter-{$key}");
 
         // markup
         $prefix = format_string('<div id="@id" class="@classes">', array(
@@ -141,9 +164,12 @@ function views_exposed_form_usability_form_views_exposed_form_alter(&$form, &$fo
       array_walk($item, $callback, $data);
     }
   };
-
+  
+  $info_key = array_flip(views_exposed_form_usability_get_column($form['#info'], 'value'));
+  
   array_walk($form, $filter, array(
     'info' => &$form['#info'],
+    'info_key' => &$info_key,
     'callback' => $filter,
   ));
 }
