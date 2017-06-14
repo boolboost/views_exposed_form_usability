@@ -22,7 +22,7 @@
 
 ~~~ php
 $form['wrap']['element'] = $form['element'];
-unset($form['element']);
+$form['element']['#type'] = 'hidden';
 ~~~
 
 ## Пример 2
